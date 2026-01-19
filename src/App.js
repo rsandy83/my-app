@@ -90,6 +90,8 @@ function App() {
   const [friendError, setFriendError] = useState('');
   const [shareNotice, setShareNotice] = useState('');
   const [authNotice, setAuthNotice] = useState('');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installNotice, setInstallNotice] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -136,6 +138,32 @@ function App() {
     const timer = setTimeout(() => setAuthNotice(''), 4000);
     return () => clearTimeout(timer);
   }, [authNotice]);
+
+  useEffect(() => {
+    const handleBeforeInstall = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const handleInstalled = () => {
+      setInstallPrompt(null);
+      setInstallNotice('JournalShare is installed.');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!installNotice) {
+      return undefined;
+    }
+    const timer = setTimeout(() => setInstallNotice(''), 4000);
+    return () => clearTimeout(timer);
+  }, [installNotice]);
 
   const isSignedIn = Boolean(user);
 
@@ -321,6 +349,26 @@ function App() {
     }
   };
 
+  const handleInstallClick = async () => {
+    if (!installPrompt) {
+      setInstallNotice('Install prompt is not ready yet.');
+      return;
+    }
+    try {
+      installPrompt.prompt();
+      const choiceResult = await installPrompt.userChoice;
+      if (choiceResult?.outcome === 'accepted') {
+        setInstallNotice('Install started. Check your home screen.');
+      } else {
+        setInstallNotice('Install dismissed.');
+      }
+    } catch (error) {
+      setInstallNotice('Install failed. Try again.');
+    } finally {
+      setInstallPrompt(null);
+    }
+  };
+
   return (
     <div className="App">
       <div className="app-shell">
@@ -342,6 +390,34 @@ function App() {
             <span className="hero-pill">Share-ready</span>
           </div>
         </header>
+
+        <section className="card install-card">
+          <div>
+            <h2>Install JournalShare</h2>
+            <p className="muted">
+              Use the app like a native Android experience with offline access and sharing.
+            </p>
+            <ul className="feature-list">
+              <li>Open this site in Chrome on Android.</li>
+              <li>Tap the install prompt or menu option "Install app".</li>
+              <li>On iOS, use Share and select "Add to Home Screen".</li>
+            </ul>
+          </div>
+          <div className="install-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleInstallClick}
+              disabled={!installPrompt}
+            >
+              Install app
+            </button>
+            <p className="muted small">
+              The install button is enabled after the browser validates the PWA.
+            </p>
+            {installNotice ? <p className="notice">{installNotice}</p> : null}
+          </div>
+        </section>
 
         <section className="card auth-card">
           <div className="auth-summary">
